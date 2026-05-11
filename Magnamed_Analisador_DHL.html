@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analisador DHL — Magnamed</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #f5f7fa;
+    font-family: 'Nunito', sans-serif;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .header {
+    background: #fff;
+    border-bottom: 3px solid #e8ecf4;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .header-logo {
+    background: #c8102e;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    padding: 6px 14px;
+    border-radius: 6px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a2e;
+  }
+
+  /* CONTAINER */
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* UPLOAD AREA */
+  .upload-section {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #8892a4;
+    margin-bottom: 16px;
+  }
+
+  .dropzone {
+    border: 2px dashed #d0d8e8;
+    border-radius: 12px;
+    padding: 20px 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: #fafbfd;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: #c8102e;
+    background: #fff5f6;
+  }
+  .dropzone.loaded {
+    border-color: #22c55e;
+    background: #f0fdf4;
+  }
+  .dropzone input { display: none; }
+  .dz-icon {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .dz-icon.main { background: #fff0f1; }
+  .dz-icon.invoice { background: #f0f4ff; }
+  .dz-text { flex: 1; }
+  .dz-title { font-size: 14px; font-weight: 700; color: #1a1a2e; margin-bottom: 2px; }
+  .dz-sub { font-size: 12px; color: #8892a4; }
+  .loaded .dz-title { color: #16a34a; }
+  .loaded .dz-sub { color: #22c55e; }
+  .dz-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+  .badge-req { background: #fff0f1; color: #c8102e; }
+  .badge-opt { background: #f0f4ff; color: #4f7aff; }
+
+  /* BOTÃO */
+  .btn-analyze {
+    width: 100%;
+    padding: 16px;
+    background: #c8102e;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .btn-analyze:hover { background: #a80d26; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(200,16,46,0.3); }
+  .btn-analyze:disabled { background: #d0d8e8; color: #8892a4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* LOADING */
+  .loading {
+    display: none;
+    text-align: center;
+    padding: 48px 24px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 24px;
+  }
+  .spinner {
+    width: 48px; height: 48px;
+    border: 4px solid #f0f2f8;
+    border-top-color: #c8102e;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading p { font-size: 14px; color: #8892a4; font-weight: 600; }
+
+  /* RESULTADO */
+  .result { display: none; }
+
+  /* DOC TYPE HEADER */
+  .doc-header {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .doc-badge {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .badge-cte { background: #f0fdf4; color: #16a34a; border: 2px solid #bbf7d0; }
+  .badge-fatura { background: #fff7ed; color: #ea580c; border: 2px solid #fed7aa; }
+  .doc-info { flex: 1; }
+  .doc-title { font-size: 20px; font-weight: 800; color: #1a1a2e; margin-bottom: 4px; }
+  .doc-sub { font-size: 13px; color: #8892a4; font-weight: 600; }
+
+  /* ALERTAS */
+  .alert {
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.5;
+  }
+  .alert-icon { font-size: 16px; flex-shrink: 0; }
+  .alert-green { background: #f0fdf4; border: 1.5px solid #bbf7d0; color: #15803d; }
+  .alert-yellow { background: #fffbeb; border: 1.5px solid #fde68a; color: #92400e; }
+  .alert-blue { background: #eff6ff; border: 1.5px solid #bfdbfe; color: #1e40af; }
+  .alert-red { background: #fff1f2; border: 1.5px solid #fecdd3; color: #be123c; }
+
+  /* CARDS DE DADOS */
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px 28px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #8892a4;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f0f2f8;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+
+  .field { }
+  .field-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #aab4c4; margin-bottom: 4px; }
+  .field-value { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+  .field-value.accent { color: #c8102e; font-size: 20px; }
+  .field-value.green { color: #16a34a; }
+  .field-value.red { color: #dc2626; }
+  .field-value.blue { color: #2563eb; }
+  .field-value.mono { font-family: 'Courier New', monospace; font-size: 13px; }
+
+  /* PARÂMETROS SAP — destaque */
+  .sap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sap-field {
+    background: #fafbfd;
+    border: 1.5px solid #e8ecf4;
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .sap-field.highlight { border-color: #c8102e; background: #fff5f6; }
+  .sap-field.highlight-green { border-color: #22c55e; background: #f0fdf4; }
+
+  /* NOME DO ARQUIVO */
+  .filename-box {
+    background: #f0fdf4;
+    border: 1.5px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    color: #15803d;
+  }
+  .filename-ext { font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #aab4c4; text-transform: uppercase; }
+
+  /* TEXTO PADRÃO */
+  .texto-box {
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a2e;
+    line-height: 1.6;
+    position: relative;
+    padding-right: 90px;
+    word-break: break-word;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 12px; right: 12px;
+    background: #fff;
+    border: 1.5px solid #e8ecf4;
+    color: #8892a4;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { border-color: #c8102e; color: #c8102e; }
+
+  /* PASSOS */
+  .steps { display: flex; flex-direction: column; gap: 10px; }
+  .step {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 32px; height: 32px;
+    background: #c8102e;
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .step-content {
+    background: #fafbfd;
+    border: 1.5px solid #e8ecf4;
+    border-radius: 10px;
+    padding: 14px 16px;
+    flex: 1;
+    transition: border-color 0.2s;
+  }
+  .step-content:hover { border-color: #c8102e; }
+  .step-title { font-size: 14px; font-weight: 800; color: #1a1a2e; margin-bottom: 5px; }
+  .step-detail { font-size: 13px; color: #4a5568; line-height: 1.6; font-weight: 500; }
+  .step-detail strong { color: #c8102e; font-weight: 700; }
+  .step-detail .tag { background: #f0f2f8; border-radius: 4px; padding: 1px 6px; font-family: 'Courier New', monospace; font-size: 12px; color: #1a1a2e; }
+  .step-detail ul { margin: 6px 0 0 16px; }
+  .step-detail li { margin-bottom: 3px; }
+
+  /* CHECKLIST */
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check-item {
+    background: #fafbfd;
+    border: 1.5px solid #e8ecf4;
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #4a5568;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  .check-item strong { color: #1a1a2e; }
+
+  /* AWB TABLE */
+  .awb-table { width: 100%; border-collapse: collapse; }
+  .awb-table th { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #aab4c4; text-align: left; padding: 8px 12px; border-bottom: 2px solid #f0f2f8; }
+  .awb-table td { font-size: 13px; font-weight: 600; color: #1a1a2e; padding: 10px 12px; border-bottom: 1px solid #f0f2f8; }
+  .awb-table tr:last-child td { border-bottom: none; }
+  .awb-table tr:hover td { background: #fafbfd; }
+
+  /* DICA */
+  .dica { font-size: 12px; color: #aab4c4; margin-top: 6px; font-weight: 600; }
+
+  @media (max-width: 600px) {
+    .grid-2, .grid-3, .sap-grid { grid-template-columns: 1fr; }
+    .container { padding: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-logo">MAGNAMED</div>
+  <div class="header-title">Analisador de Documentos DHL</div>
+</header>
+
+<div class="container">
+
+  <!-- UPLOAD -->
+  <div class="upload-section">
+    <div class="section-label">📎 Documentos para análise</div>
+
+    <div class="dropzone" id="dz-main" onclick="document.getElementById('file-main').click()">
+      <input type="file" id="file-main" accept=".pdf" onchange="onFileMain(this)">
+      <div class="dz-icon main">📄</div>
+      <div class="dz-text">
+        <div class="dz-title">CT-e ou Fatura DHL</div>
+        <div class="dz-sub" id="sub-main">Clique aqui ou arraste o PDF</div>
+      </div>
+      <span class="dz-badge badge-req">OBRIGATÓRIO</span>
+    </div>
+
+    <div class="dropzone" id="dz-invoice" onclick="document.getElementById('file-invoice').click()">
+      <input type="file" id="file-invoice" accept=".pdf" onchange="onFileInvoice(this)">
+      <div class="dz-icon invoice">📋</div>
+      <div class="dz-text">
+        <div class="dz-title">Invoice Magnamed</div>
+        <div class="dz-sub" id="sub-invoice">Clique aqui ou arraste o PDF (opcional)</div>
+      </div>
+      <span class="dz-badge badge-opt">OPCIONAL</span>
+    </div>
+
+    <button class="btn-analyze" id="btn-analyze" disabled onclick="analisar()">
+      🔍 ANALISAR DOCUMENTO
+    </button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>Analisando o documento, aguarde...</p>
+  </div>
+
+  <!-- RESULTADO -->
+  <div class="result" id="result"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let mainText = '', invoiceText = '';
+
+['dz-main','dz-invoice'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) id === 'dz-main' ? loadMain(f) : loadInvoice(f);
+  });
+});
+
+function onFileMain(i) { if (i.files[0]) loadMain(i.files[0]); }
+function onFileInvoice(i) { if (i.files[0]) loadInvoice(i.files[0]); }
+
+async function extractText(file) {
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+  let txt = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    txt += content.items.map(x => x.str).join(' ') + '\n';
+  }
+  return txt;
+}
+
+async function loadMain(file) {
+  document.getElementById('sub-main').textContent = 'Lendo PDF...';
+  try {
+    mainText = await extractText(file);
+    document.getElementById('dz-main').classList.add('loaded');
+    document.getElementById('sub-main').textContent = file.name.length > 40 ? file.name.substring(0,40)+'...' : file.name;
+    document.getElementById('btn-analyze').disabled = false;
+  } catch { document.getElementById('sub-main').textContent = 'Erro ao ler. Tente novamente.'; }
+}
+
+async function loadInvoice(file) {
+  document.getElementById('sub-invoice').textContent = 'Lendo PDF...';
+  try {
+    invoiceText = await extractText(file);
+    document.getElementById('dz-invoice').classList.add('loaded');
+    document.getElementById('sub-invoice').textContent = file.name.length > 40 ? file.name.substring(0,40)+'...' : file.name;
+  } catch { document.getElementById('sub-invoice').textContent = 'Erro ao ler.'; }
+}
+
+async function analisar() {
+  if (!mainText) return;
+  document.getElementById('result').style.display = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('btn-analyze').disabled = true;
+
+  try {
+    let userContent = `DOCUMENTO PRINCIPAL:\n\n${mainText}`;
+    if (invoiceText) userContent += `\n\n---\nINVOICE MAGNAMED:\n\n${invoiceText}`;
+
+    const system = `Você é um assistente especializado em operações de Comex da Magnamed Tecnologia Médica S.A.
+
+Analise o texto extraído de documentos DHL e retorne um JSON com os dados para lançamento no SAP B1.
+
+IDENTIFICAÇÃO:
+- "DACTE", "Conhecimento de Transporte Eletrônico", "Tipo do CT-e" → tipo = "CTE"
+- "FATURA DE SERVIÇO", número tipo "CGHR...", "Prazo de Pagamento" → tipo = "FATURA"
+
+AT vs COMEX:
+- Invoice com Seller "MagnaService" → natureza = "AT"
+- Sem invoice ou outro seller → natureza = "COMEX"
+
+SUBTIPO CT-e:
+- "Tipo do CT-e" = "Complemento" → subtipo = "Complemento"
+- "Tipo do CT-e" = "Normal" → subtipo = "Normal"
+- Com "COURIER" → subtipo = "COURIER" ou "COURIER Complemento"
+
+PAÍS → CENTRO DE CUSTO:
+40.26 América do Sul: Argentina, Bolivia, Chile, Colombia, Equador, Guiana, Paraguai, Peru, Suriname, Uruguai, Venezuela, Mexico, Cuba, Costa Rica, Panama, Guatemala, Honduras, El Salvador, Nicaragua, Jamaica, Haiti, República Dominicana
+40.27 MENA: Argélia, Marrocos, Tunísia, Egito, Líbia, Arábia Saudita, Emirados Árabes, Qatar, Kuwait, Iraque, Irã, Israel, Jordânia, Líbano, Síria, Turquia, Etiópia, Sudão, Djibouti, Iêmen, Omã, Bahrain, Palestina, Malta
+40.23 África: África do Sul, Angola, Benin, Botsuana, Burkina Fasso, Burundi, Camarões, Cabo Verde, Chade, Congo, Costa do Marfim, Eritréia, Gabão, Gâmbia, Gana, Guiné, Lesoto, Libéria, Madagascar, Mali, Maurício, Moçambique, Namíbia, Niger, Nigéria, Quênia, Ruanda, Senegal, Seychelles, Serra Leoa, Somália, Tanzânia, Togo, Uganda, Zâmbia, Zimbábue, RDC
+40.24 Ásia: Índia, Bangladesh, China, Hong Kong, Japão, Coreia do Sul, Tailândia, Vietnã, Indonésia, Malásia, Cingapura, Filipinas, Camboja, Laos, Mianmar, Sri Lanka, Nepal, Paquistão, Cazaquistão, Austrália, Nova Zelândia
+40.25 Europa: Alemanha, Áustria, Bélgica, Bulgária, Chipre, Croácia, Dinamarca, Eslováquia, Eslovênia, Espanha, Estônia, Finlândia, França, Grécia, Holanda, Hungria, Irlanda, Itália, Letônia, Lituânia, Luxemburgo, Polônia, Portugal, República Tcheca, Romênia, Suécia, Reino Unido, Suíça, Noruega, Ucrânia
+11.10 AT: quando natureza = AT
+40.10 Adm Comercial: país não identificado
+
+DEPÓSITO: CNPJ 01.298.443/0001-73 → "99" | CNPJ 01.298.443/0002-54 → "98"
+CTE: usar CNPJ do tomador. FATURA: usar CNPJ do cliente Magnamed.
+
+UTILIZAÇÃO:
+COMEX+CTE → "COM :: Despesas com Exportações (CTE/DACTE)"
+COMEX+FATURA → "COM :: Despesas com Exportações (Serviços/NFES)"
+AT+CTE → "AT :: Frete S/ Magnaservice (CTE/DACTE)"
+AT+FATURA → "AT :: Frete S/ Magnaservice (Serviços/NFES)"
+
+NOME ARQUIVO CTE: Normal→"CTE [num]" | Complemento→"CTE [num] - Complemento" | COURIER→"CTE [num] - COURIER" | COURIER Complemento→"CTE [num] - COURIER Complemento"
+
+TEXTO PADRÃO:
+CTE: "NÃO GERA CONTAS A PAGAR - CTE [num] - [DEST] ([PAIS]) - AWB [awb] - SOMENTE ESCRITURAÇÃO"
+FATURA: "FATURA DHL [num] - R$ [valor] - VCTO: [vencimento] - [DEST] ([PAIS]) AWB [awb]"
+
+JSON CTE: {"tipo":"CTE","subtipo":"","numero_cte":"","serie":"","chave_acesso":"","chave_complementado":"","data_emissao":"","remetente":"","cnpj_remetente":"","destinatario":"","pais_destinatario":"","awb":"","valor":"","natureza":"","centro_custo":"","deposito":"","utilizacao":"","nome_arquivo_pdf":"","nome_arquivo_xml":"","texto_padrao":"","observacoes":[]}
+
+JSON FATURA: {"tipo":"FATURA","numero_fatura":"","data_emissao":"","prazo_pagamento":"","taxa_cambio":"","valor_brl":"","valor_usd":"","cnpj_cliente":"","awbs":[{"numero":"","destinatario":"","pais_destinatario":"","tipo_servico":"","valor_brl":""}],"natureza":"","centro_custo":"","deposito":"","utilizacao":"","texto_padrao":"","duties_taxes":false,"observacoes":[]}
+
+Responda APENAS com JSON válido. Sem markdown.`;
+
+    const resp = await fetch("https://proxy-anthropic.paulo-spolaor.workers.dev", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5",
+        max_tokens: 2000,
+        system,
+        messages: [{ role: "user", content: userContent }]
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || `Erro ${resp.status}`);
+    const raw = data.content.find(b => b.type === 'text')?.text || '{}';
+    const r = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    renderResult(r);
+
+  } catch(err) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').innerHTML = `<div class="alert alert-red"><span class="alert-icon">⚠️</span><div><strong>Erro:</strong> ${err.message}</div></div>`;
+  } finally {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('btn-analyze').disabled = false;
+  }
+}
+
+function renderResult(r) {
+  const isCTE = r.tipo === 'CTE';
+  const isAT = r.natureza === 'AT';
+  const dep = r.deposito === '98' ? '98 — CNPJ 01.298.443/0002-54' : '99 — CNPJ 01.298.443/0001-73';
+  const cc = Array.isArray(r.centro_custo) ? r.centro_custo.join(' / ') : (r.centro_custo||'—');
+  const util = r.utilizacao||'—';
+  let html = '';
+
+  // CABEÇALHO
+  html += `<div class="doc-header">
+    <div class="doc-badge ${isCTE?'badge-cte':'badge-fatura'}">${isCTE?'📄 CT-e DHL':'💰 Fatura DHL'}</div>
+    <div class="doc-info">
+      <div class="doc-title">${isCTE?`CT-e nº ${r.numero_cte}${r.subtipo&&r.subtipo!=='Normal'?' · '+r.subtipo:''}`:`Fatura ${r.numero_fatura}`}</div>
+      <div class="doc-sub">${isAT?'⚙️ AT / MagnaService':'🌍 Exportação Comex'} · ${isCTE?'Não gera contas a pagar':'Gera contas a pagar'}</div>
+    </div>
+  </div>`;
+
+  // ALERTAS
+  if (isCTE) {
+    html += `<div class="alert alert-green"><span class="alert-icon">✅</span><div>Este lançamento é <strong>apenas escrituração fiscal</strong> — não gera boleto nem pagamento.</div></div>`;
+    if (r.subtipo==='Complemento'||r.subtipo==='COURIER Complemento') {
+      html += `<div class="alert alert-yellow"><span class="alert-icon">⚠️</span><div><strong>CT-e Complementar:</strong> verifique se o CT-e original já foi escriturado antes de lançar este.<br><small style="font-family:monospace;font-size:11px;">${r.chave_complementado||''}</small></div></div>`;
+    }
+  } else {
+    html += `<div class="alert alert-yellow"><span class="alert-icon">💳</span><div>Este lançamento <strong>gera boleto para pagamento.</strong> Vencimento: <strong>${r.prazo_pagamento||'—'}</strong> · Valor: <strong>R$ ${r.valor_brl||'—'}</strong></div></div>`;
+    if (r.awbs?.length > 1) html += `<div class="alert alert-blue"><span class="alert-icon">📦</span><div>Esta fatura tem <strong>${r.awbs.length} AWBs</strong>. Verifique se o centro de custo precisa ser dividido entre os processos.</div></div>`;
+    if (r.duties_taxes) html += `<div class="alert alert-blue"><span class="alert-icon">🏛️</span><div><strong>Possível Duties & Taxes (DDP):</strong> verifique se há impostos no destino incluídos nesta fatura.</div></div>`;
+  }
+
+  // DADOS EXTRAÍDOS
+  html += `<div class="card"><div class="card-title">📋 Dados do documento</div><div class="grid-2">`;
+  if (isCTE) {
+    html += field('Nº do CT-e', r.numero_cte, 'accent');
+    html += field('Série', r.serie, '');
+    html += field('Tipo', r.subtipo||'Normal', r.subtipo&&r.subtipo!=='Normal'?'blue':'');
+    html += field('Data de emissão', r.data_emissao, '');
+    html += field('AWB', r.awb, 'accent');
+    html += field('Valor', `R$ ${r.valor}`, 'accent');
+    html += field('Destinatário', r.destinatario, '');
+    html += field('País destino', r.pais_destinatario, '');
+  } else {
+    html += field('Nº da fatura', r.numero_fatura, 'accent');
+    html += field('Data de emissão', r.data_emissao, '');
+    html += field('Vencimento', r.prazo_pagamento, 'red');
+    html += field('Taxa de câmbio', r.taxa_cambio?`R$ ${r.taxa_cambio}`:'—', '');
+    html += field('Valor total BRL', `R$ ${r.valor_brl}`, 'accent');
+    html += field('Valor total USD', `USD ${r.valor_usd}`, '');
+    html += field('CNPJ cliente', r.cnpj_cliente, 'mono');
+    html += field('Qtd de AWBs', r.awbs?String(r.awbs.length):'—', '');
+  }
+  html += `</div></div>`;
+
+  // AWBs DA FATURA
+  if (!isCTE && r.awbs?.length > 0) {
+    html += `<div class="card"><div class="card-title">📦 AWBs incluídos nesta fatura</div>
+    <table class="awb-table"><thead><tr><th>AWB</th><th>Destinatário</th><th>País</th><th>Valor BRL</th></tr></thead><tbody>`;
+    r.awbs.forEach(a => {
+      html += `<tr><td style="font-family:monospace;color:#c8102e;font-weight:700">${a.numero||'—'}</td><td>${a.destinatario||'—'}</td><td>${a.pais_destinatario||'—'}</td><td style="color:#16a34a;font-weight:700">R$ ${a.valor_brl||'—'}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  // PARÂMETROS SAP
+  html += `<div class="card"><div class="card-title">⚙️ O que preencher no SAP</div><div class="sap-grid">`;
+  html += sapField('Fornecedor (código DHL)', '00078', true, false);
+  html += sapField('Código', isCTE?'EN — Frete Tributado':'EN — Escrituração', false, false);
+  html += sapField('Código de imposto', 'ISS0', false, false);
+  html += sapField('Depósito', dep, true, false);
+  html += sapField('Centro de custo', cc, false, true);
+  html += sapField('Utilização', util, false, false);
+  html += `</div></div>`;
+
+  // NOME DO ARQUIVO (CTE)
+  if (isCTE) {
+    html += `<div class="card"><div class="card-title">💾 Salvar os arquivos com este nome</div>`;
+    html += `<div class="filename-box"><span>${r.nome_arquivo_pdf||'CTE '+r.numero_cte}.pdf</span><span class="filename-ext">PDF</span></div>`;
+    html += `<div class="filename-box"><span>${r.nome_arquivo_xml||'CTE '+r.numero_cte}.xml</span><span class="filename-ext">XML</span></div>`;
+    html += `<div class="alert alert-blue" style="margin-top:12px;"><span class="alert-icon">📁</span><div>Salvar em: <strong>T:\\Comex\\Faturas DHL</strong> e também na pasta do processo do AWB <strong>${r.awb||'—'}</strong></div></div>`;
+    html += `</div>`;
+  }
+
+  // TEXTO PADRÃO
+  html += `<div class="card"><div class="card-title">📝 Texto para copiar no pedido SAP</div>
+  <div class="texto-box"><button class="copy-btn" onclick="copyTexto()">📋 Copiar</button><span id="texto-content">${r.texto_padrao||'—'}</span></div>`;
+  if (isCTE && !invoiceText) html += `<p class="dica">💡 Dica: complementar com o número da INVOICE, PV e NF quando tiver.</p>`;
+  html += `</div>`;
+
+  // PASSO A PASSO
+  const steps = buildSteps(r, isCTE, dep, cc, util);
+  html += `<div class="card"><div class="card-title">👣 Passo a passo no SAP</div><div class="steps">`;
+  steps.forEach((s,i) => {
+    html += `<div class="step"><div class="step-num">${i+1}</div><div class="step-content"><div class="step-title">${s.t}</div><div class="step-detail">${s.d}</div></div></div>`;
+  });
+  html += `</div></div>`;
+
+  // CHECKLIST
+  const checks = buildChecks(r, isCTE);
+  html += `<div class="card"><div class="card-title">✅ Checklist de conferência</div><div class="checklist">`;
+  checks.forEach(c => { html += `<div class="check-item"><span>${c.i}</span><div>${c.t}</div></div>`; });
+  html += `</div></div>`;
+
+  if (r.observacoes?.length > 0) {
+    html += `<div class="card"><div class="card-title">📌 Observações</div><div class="checklist">`;
+    r.observacoes.forEach(o => { html += `<div class="check-item"><span>📌</span><div>${o}</div></div>`; });
+    html += `</div></div>`;
+  }
+
+  html += `<div style="height:32px"></div>`;
+  const area = document.getElementById('result');
+  area.innerHTML = html;
+  area.style.display = 'block';
+  area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function field(label, value, style) {
+  let cls = 'field-value';
+  if (style) cls += ' ' + style;
+  return `<div class="field"><div class="field-label">${label}</div><div class="${cls}">${value||'—'}</div></div>`;
+}
+
+function sapField(label, value, red, green) {
+  let cls = 'sap-field';
+  if (red) cls += ' highlight';
+  if (green) cls += ' highlight-green';
+  return `<div class="${cls}"><div class="field-label">${label}</div><div class="field-value" style="font-size:14px;">${value||'—'}</div></div>`;
+}
+
+function buildSteps(r, isCTE, dep, cc, util) {
+  if (isCTE) return [
+    { t:'Salvar os arquivos', d:`Salve o <strong>PDF</strong> e o <strong>XML</strong> em <span class="tag">T:\\Comex\\Faturas DHL</span> com o nome <span class="tag">${r.nome_arquivo_pdf||'CTE '+r.numero_cte}</span>. Salve também na pasta do processo do AWB <span class="tag">${r.awb||'—'}</span>.` },
+    { t:'Abrir o SAP e ir em Compras', d:`Acesse <strong>Compras → Pedido de Compra</strong>. Localize um pedido anterior da DHL (fornecedor <span class="tag">00078</span>) e clique em <strong>Duplicar</strong>.` },
+    { t:'Escolher filial e moeda', d:`Selecione a filial do depósito <span class="tag">${dep}</span>. Moeda: <strong>BRL (R$)</strong>.` },
+    { t:'Preencher o cabeçalho', d:`<strong>Fornecedor:</strong> <span class="tag">00078</span> (DHL Express)<br><strong>Data de entrega:</strong> <span class="tag">${r.data_emissao||'—'}</span>` },
+    { t:'Preencher o item', d:`<strong>Preço unitário:</strong> <span class="tag">R$ ${r.valor||'—'}</span><br><strong>Utilização:</strong> <span class="tag">${util}</span><br><strong>Código de imposto:</strong> <span class="tag">ISS0</span><br><strong>Data de entrega:</strong> <span class="tag">${r.data_emissao||'—'}</span>` },
+    { t:'Preencher a contabilização', d:`<strong>Centro de custo:</strong> <span class="tag">${cc}</span><br><strong>Depósito:</strong> <span class="tag">${dep}</span>` },
+    { t:'Colar o texto de observação', d:`Copie o texto padrão acima e cole no campo de <strong>observações</strong> do pedido.` },
+    { t:'Anexar PDF e XML', d:`Anexe o <strong>PDF do DACTE</strong> e o <strong>XML</strong> ao pedido antes de enviar para aprovação.` },
+    { t:'Enviar para aprovação', d:`<ul><li>Acesse <strong>Notificações</strong> → clique no número do esboço</li><li>Clique em <strong>Adicionar pedido</strong></li><li><strong>Não anexar relatório</strong></li><li>Insira o destinatário → lista <strong>CENTRAL</strong></li><li>Selecione pessoas e flags → <strong>Enviar pedido</strong></li></ul>` }
+  ];
+  return [
+    { t:'Salvar fatura e boleto', d:`Salve os arquivos em <span class="tag">T:\\Comex\\Faturas DHL</span> e nas pastas dos processos (AWBs: <span class="tag">${r.awbs?r.awbs.map(a=>a.numero).join(', '):'—'}</span>).` },
+    { t:'Conferir a fatura antes de lançar', d:`<ul><li>Verificar se tem <strong>Duties & Taxes (DDP)</strong> — impostos no destino</li><li>Conferir se é <strong>doação ou garantia</strong></li><li>Verificar quantos AWBs: <strong>${r.awbs?r.awbs.length:'—'}</strong></li><li>Taxa de câmbio: <span class="tag">${r.taxa_cambio||'—'}</span></li><li>Vencimento do boleto: <span class="tag">${r.prazo_pagamento||'—'}</span></li></ul>` },
+    { t:'Abrir o SAP e ir em Compras', d:`Acesse <strong>Compras → Pedido de Compra</strong>. Localize pedido da DHL (fornecedor <span class="tag">00078</span>) e clique em <strong>Duplicar</strong>.` },
+    { t:'Escolher filial e moeda', d:`Filial do depósito <span class="tag">${dep}</span>. Moeda: <strong>BRL (R$)</strong>.` },
+    { t:'Preencher o cabeçalho', d:`<strong>Fornecedor:</strong> <span class="tag">00078</span><br><strong>Data de entrega:</strong> <span class="tag">${r.data_emissao||'—'}</span>` },
+    { t:'Preencher o item', d:`<strong>Preço unitário:</strong> <span class="tag">R$ ${r.valor_brl||'—'}</span><br><strong>Utilização:</strong> <span class="tag">${util}</span><br><strong>Código de imposto:</strong> <span class="tag">ISS0</span><br><strong>Data de entrega:</strong> <span class="tag">${r.prazo_pagamento||r.data_emissao||'—'}</span>` },
+    { t:'Preencher a contabilização', d:`<strong>Código:</strong> <span class="tag">EN — Escrituração</span><br><strong>Centro de custo:</strong> <span class="tag">${cc}</span><br><strong>Depósito:</strong> <span class="tag">${dep}</span>` },
+    { t:'Colar o texto de observação', d:`Copie o texto padrão acima e cole no campo de <strong>observações</strong> do pedido.` },
+    { t:'Anexar PDF da fatura e boleto', d:`Anexe o <strong>PDF da fatura</strong> e o <strong>PDF do boleto</strong> ao pedido antes de enviar.` },
+    { t:'Enviar para aprovação', d:`<ul><li>Acesse <strong>Notificações</strong> → clique no número do esboço</li><li>Clique em <strong>Adicionar pedido</strong></li><li><strong>Não anexar relatório</strong></li><li>Insira o destinatário → lista <strong>CENTRAL</strong></li><li>Selecione pessoas e flags → <strong>Enviar pedido</strong></li></ul>` }
+  ];
+}
+
+function buildChecks(r, isCTE) {
+  if (isCTE) return [
+    { i:'🔑', t:`Chave de acesso: <small style="font-family:monospace">${r.chave_acesso||'—'}</small>` },
+    { i:'📦', t:`Tipo do CT-e: <strong>${r.subtipo||'Normal'}</strong>` },
+    { i:'🚢', t:`AWB do processo: <strong>${r.awb||'—'}</strong>` },
+    { i:'🏢', t:`Destinatário: <strong>${r.destinatario||'—'}</strong> · ${r.pais_destinatario||'—'}` },
+    { i:'💰', t:`Valor para escrituração: <strong>R$ ${r.valor||'—'}</strong>` },
+    ...(r.subtipo==='Complemento'||r.subtipo==='COURIER Complemento'?[{i:'⚠️',t:'<strong>Verificar se o CT-e original já foi escriturado!</strong>'}]:[])
+  ];
+  return [
+    { i:'📄', t:`Número da fatura: <strong>${r.numero_fatura||'—'}</strong>` },
+    { i:'📅', t:`Vencimento do boleto: <strong>${r.prazo_pagamento||'—'}</strong>` },
+    { i:'💰', t:`Valor: <strong>R$ ${r.valor_brl||'—'} / USD ${r.valor_usd||'—'}</strong>` },
+    { i:'💱', t:`Taxa de câmbio: <strong>${r.taxa_cambio||'—'}</strong>` },
+    { i:'🔍', t:`Duties & Taxes (DDP): <strong>${r.duties_taxes?'Sim — verificar!':'Não identificado'}</strong>` },
+    { i:'📦', t:`Quantidade de AWBs: <strong>${r.awbs?r.awbs.length:'—'}</strong>` }
+  ];
+}
+
+function copyTexto() {
+  const t = document.getElementById('texto-content')?.innerText;
+  if (!t) return;
+  navigator.clipboard.writeText(t).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = '✅ Copiado!';
+    btn.style.color = '#16a34a';
+    btn.style.borderColor = '#22c55e';
+    setTimeout(() => { btn.textContent = '📋 Copiar'; btn.style.color=''; btn.style.borderColor=''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
